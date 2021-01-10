@@ -170,7 +170,7 @@ CREATE TABLE "Order"
 (
     id                INT PRIMARY KEY,
     ordered_date      TIMESTAMP DEFAULT ON NULL SYSTIMESTAMP,
-    estimated_arrival TIMESTAMP DEFAULT ON NULL SYSTIMESTAMP + NUMTODSINTERVAL(:base_arrival, 'MINUTE'),
+    estimated_arrival TIMESTAMP DEFAULT ON NULL SYSTIMESTAMP + INTERVAL '20' MINUTE,
     arrived_at        TIMESTAMP,
     flgActive         NUMBER(1) DEFAULT ON NULL 1 CHECK (flgActive IN (0, 1)),
     address           INT NOT NULL REFERENCES Address
@@ -197,6 +197,17 @@ CREATE TABLE OrderEntries
 
 --PROCEDURES--
 
+CREATE OR REPLACE FUNCTION role(user_ IN INT) RETURN NUMBER IS
+    address_ INT; -- forcing an exception
+BEGIN
+    SELECT address INTO address_ FROM "User" WHERE id = user_;
+    RETURN 0; -- Customer
+
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN RETURN 1; -- Employee
+END;
+/
+
 CREATE OR REPLACE FUNCTION sign_in(login_ IN VARCHAR2, password_ IN VARCHAR2) RETURN NUMBER IS
     retval NUMBER;
 BEGIN
@@ -220,7 +231,6 @@ CREATE OR REPLACE FUNCTION sign_up(
     surname_ IN VARCHAR2,
     address_ IN INT
 ) RETURN NUMBER IS
-    retval NUMBER;
     counter INT;
 BEGIN
     SELECT COUNT(id) INTO counter FROM "User"
@@ -231,9 +241,8 @@ BEGIN
         RETURN -1;
     ELSE
         INSERT INTO "User" VALUES (NULL, login_, password_, email_, name_, surname_, SYSTIMESTAMP, 0, address_);
-            retval = iduser_seq.currval;
         COMMIT;
-        RETURN retval;
+        RETURN 0; -- success
     END IF;
 END;
 /
@@ -257,16 +266,37 @@ BEGIN
     EXCEPTION
         WHEN NO_DATA_FOUND THEN
             INSERT INTO Address VALUES (NULL, postal_code_, town_, street_, num_);
-            retval = idaddress_seq.currval;
+
+            SELECT id INTO retval FROM Address
+            WHERE postal_code = postal_code_
+              AND town = town_
+              AND street = street_
+              AND num = num_;
+
             COMMIT;
             RETURN retval;
 END;
 /
 
-CREATE OR REPLACE PROCEDURE change_address(customer_ IN INT, address_ IN INT) IS
+CREATE OR REPLACE FUNCTION role(user_ IN INT) RETURN NUMBER IS
+    address_ INT; -- forcing an exception
+BEGIN
+    SELECT address INTO address_ FROM "User" WHERE id = user_;
+    RETURN 0; -- Customer
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN RETURN 1; -- Employee
+END;
+/
+
+CREATE OR REPLACE PROCEDURE change_address(customer_ IN INT, address_new IN INT) IS
+    address_old INT; -- forcing an exception
 BEGIN
     -- check if given customer is not an employee (i.e. if they have some address)
+    SELECT address INTO address_old FROM "User" WHERE id = customer_;
 
+    UPDATE "User" SET address = address_new WHERE id = customer_;
+    COMMIT;
 END;
 /
 
@@ -292,10 +322,14 @@ END;
 /
 
 CREATE OR REPLACE FUNCTION possible_order(dish_ IN INT) RETURN NUMBER IS
-    retval NUMBER;
+    retval NUMBER := 0;
 BEGIN
     FOR row IN (
-        SELECT I.stock, NI.amount FROM Ingredient I JOIN NeedIngredient NI ON I.name = NI.ingredient
+        SELECT I.stock, NI.amount
+        FROM Ingredient I JOIN (
+            SELECT * FROM NeedIngredient
+            WHERE dish = dish_
+        ) NI ON I.name = NI.ingredient
     ) LOOP
         retval = LEAST(retval, FLOOR(row.stock / row.amount));
     END LOOP;
@@ -384,5 +418,23 @@ BEGIN
         total_price = total_price + row.amount * row.price;
     END LOOP;
     RETURN total_price;
+END;
+/
+
+CREATE OR REPLACE FUNCTION order_status(order_id IN INT) RETURN NUMBER IS
+    row "Order"%ROWTYPE;
+BEGIN
+    SELECT * INTO row FROM "Order" WHERE id = order_id;
+
+    IF row.flgActive = 1 AND row.arrived_at IS NULL THEN
+        RETURN 0; -- pending
+    ELSIF row.flgActive = 0 AND row.arrived_at IS NOT NULL THEN
+        RETURN 1; -- arrived
+    ELSIF row.flgActive = 0 AND row.arrived_at IS NULL THEN
+        RETURN 2; -- canceled by employee
+    ELSE
+        raise_application_error(-20002, 'Invalid behaviour: order is active and has been delivered');
+        RETURN -1;
+    END IF;
 END;
 /
