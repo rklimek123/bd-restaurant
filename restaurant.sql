@@ -278,17 +278,6 @@ BEGIN
 END;
 /
 
-CREATE OR REPLACE FUNCTION role(user_ IN INT) RETURN NUMBER IS
-    address_ INT; -- forcing an exception
-BEGIN
-    SELECT address INTO address_ FROM "User" WHERE id = user_;
-    RETURN 0; -- Customer
-
-EXCEPTION
-    WHEN NO_DATA_FOUND THEN RETURN 1; -- Employee
-END;
-/
-
 CREATE OR REPLACE PROCEDURE change_address(customer_ IN INT, address_new IN INT) IS
     address_old INT; -- forcing an exception
 BEGIN
