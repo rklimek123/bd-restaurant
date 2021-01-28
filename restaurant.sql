@@ -25,11 +25,11 @@ DROP TABLE Dish;
 DROP TABLE "User";
 DROP TABLE Address;
 
-VARIABLE base_arrival NUMBER;
-EXECUTE :base_arrival := 20;
-
-VARIABLE delivery_price NUMBER;
-EXECUTE :delivery_price := 10;
+CREATE OR REPLACE PACKAGE const AS
+    base_arrival CONSTANT INT := 20;
+    delivery_price CONSTANT INT := 10;
+END;
+/
 
 CREATE TABLE Ingredient
 (
@@ -320,7 +320,7 @@ BEGIN
             WHERE dish = dish_
         ) NI ON I.name = NI.ingredient
     ) LOOP
-        retval = LEAST(retval, FLOOR(row.stock / row.amount));
+        retval := LEAST(retval, FLOOR(row.stock / row.amount));
     END LOOP;
     RETURN retval;
 END;
@@ -350,7 +350,7 @@ END;
 CREATE OR REPLACE FUNCTION place_order(customer_ IN INT) RETURN NUMBER IS
     entries INT;
     now TIMESTAMP := SYSTIMESTAMP;
-    minutes_to_arrive INT := :base_arrival;
+    minutes_to_arrive INT := const.base_arrival;
     order_id INT;
 BEGIN
     SELECT COUNT(id) INTO entries FROM Entry WHERE customer = customer_ AND flgInCart = 1;
@@ -364,7 +364,7 @@ BEGIN
             1,                                                  -- flgActive
             (SELECT address FROM "User" WHERE id = customer_)   -- address
         );
-        order_id = idorder_seq.currval;
+        order_id := idorder_seq.currval;
 
         FOR row IN (
             SELECT E.id entry_id,
@@ -381,7 +381,7 @@ BEGIN
                 RETURN -1; -- insufficient amount
             END IF;
 
-            minutes_to_arrive = minutes_to_arrive + row.prep_time * row.amount;
+            minutes_to_arrive := minutes_to_arrive + row.prep_time * row.amount;
 
             INSERT INTO OrderEntries VALUES (order_id, row.entry_id);
         END LOOP;
@@ -396,7 +396,7 @@ END;
 /
 
 CREATE OR REPLACE FUNCTION order_price(order_id IN INT) RETURN NUMBER IS
-    total_price INT := :delivery_price;
+    total_price INT := const.delivery_price;
 BEGIN
     FOR row IN (
         SELECT E.amount amount,
@@ -404,7 +404,7 @@ BEGIN
         FROM OrderEntries OE JOIN Entry E ON OE.entry = E.id JOIN Dish D ON E.dish = D.id
         WHERE OE."order" = order_id
     ) LOOP
-        total_price = total_price + row.amount * row.price;
+        total_price := total_price + row.amount * row.price;
     END LOOP;
     RETURN total_price;
 END;
