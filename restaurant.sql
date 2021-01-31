@@ -199,27 +199,20 @@ CREATE TABLE OrderEntries
 
 CREATE OR REPLACE FUNCTION role(user_ IN INT) RETURN NUMBER IS
     address_ INT; -- forcing an exception
+    login_ VARCHAR2; -- forcing an exception
 BEGIN
+    BEGIN
+        SELECT login INTO login_ FROM "User" WHERE id = user_ AND flgDeleted = 0;
+
+        EXCEPTION
+            WHEN NO_DATA_FOUND THEN RETURN -1; -- NotFound
+    END;
+
     SELECT address INTO address_ FROM "User" WHERE id = user_;
     RETURN 0; -- Customer
 
     EXCEPTION
         WHEN NO_DATA_FOUND THEN RETURN 1; -- Employee
-END;
-/
-
-CREATE OR REPLACE FUNCTION sign_in(login_ IN VARCHAR2, password_ IN VARCHAR2) RETURN NUMBER IS
-    retval NUMBER;
-BEGIN
-    SELECT id INTO retval
-    FROM "User"
-    WHERE flgDeleted = 0
-        AND login = login_
-        AND password = password_;
-    RETURN retval;
-
-    EXCEPTION
-        WHEN NO_DATA_FOUND THEN RETURN -1;
 END;
 /
 
@@ -425,5 +418,16 @@ BEGIN
         raise_application_error(-20002, 'Invalid behaviour: order is active and has been delivered');
         RETURN -1;
     END IF;
+END;
+/
+
+CREATE OR REPLACE FUNCTION get_user(login_ IN VARCHAR2) RETURN INT IS
+    retval INT;
+BEGIN
+    SELECT id INTO retval FROM "User" WHERE login = login_ AND flgDeleted = 0;
+    RETURN retval;
+
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN RETURN -1;
 END;
 /
