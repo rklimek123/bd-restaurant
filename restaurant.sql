@@ -197,33 +197,30 @@ CREATE TABLE OrderEntries
 
 --PROCEDURES--
 
-CREATE OR REPLACE FUNCTION role(user_ IN INT) RETURN NUMBER IS
-    address_ INT; -- forcing an exception
-    login_ VARCHAR2; -- forcing an exception
+CREATE OR REPLACE PROCEDURE role(user_ IN INT, role_ OUT INT) IS
+    cnt INT;
+    cnt_address INT;
 BEGIN
-    BEGIN
-        SELECT login INTO login_ FROM "User" WHERE id = user_ AND flgDeleted = 0;
-
-        EXCEPTION
-            WHEN NO_DATA_FOUND THEN RETURN -1; -- NotFound
-    END;
-
-    SELECT address INTO address_ FROM "User" WHERE id = user_;
-    RETURN 0; -- Customer
-
-    EXCEPTION
-        WHEN NO_DATA_FOUND THEN RETURN 1; -- Employee
+    SELECT COUNT(login) INTO cnt FROM "User" WHERE id = user_ AND flgDeleted = 0;
+    IF cnt = 0 THEN role_ := -1; -- Non-existent
+    ELSE
+        SELECT COUNT(address) INTO cnt_address FROM "User" WHERE id = user_;
+        IF cnt_address = 0 THEN role_ := 1; -- Employee
+        ELSE role_ := 0; -- Customer
+        END IF;
+    END IF;
 END;
 /
 
-CREATE OR REPLACE FUNCTION sign_up(
+CREATE OR REPLACE PROCEDURE sign_up(
     login_ IN VARCHAR2,
     password_ IN VARCHAR2,
     email_ IN VARCHAR2,
     name_ IN VARCHAR2,
     surname_ IN VARCHAR2,
-    address_ IN INT
-) RETURN NUMBER IS
+    address_ IN INT,
+    success_ OUT INT
+) IS
     counter INT;
 BEGIN
     SELECT COUNT(id) INTO counter FROM "User"
@@ -231,43 +228,42 @@ BEGIN
       AND login = login_;
 
     IF counter > 0 THEN
-        RETURN -1;
+        success_ := -1;
     ELSE
         INSERT INTO "User" VALUES (NULL, login_, password_, email_, name_, surname_, SYSTIMESTAMP, 0, address_);
         COMMIT;
-        RETURN 0; -- success
+        success_ := 0;
     END IF;
 END;
 /
 
-CREATE OR REPLACE FUNCTION add_address(
+CREATE OR REPLACE PROCEDURE add_address(
     postal_code_ IN VARCHAR2,
     town_ IN VARCHAR2,
     street_ IN VARCHAR2,
-    num_ IN VARCHAR2
-) RETURN NUMBER IS
-    retval NUMBER;
+    num_ IN VARCHAR2,
+    address_ OUT NUMBER
+) IS
 BEGIN
-    SELECT id INTO retval FROM Address
+    SELECT id INTO address_ FROM Address
     WHERE postal_code = postal_code_
         AND town = town_
         AND street = street_
         AND num = num_;
 
-    RETURN retval;
+    RETURN;
 
     EXCEPTION
         WHEN NO_DATA_FOUND THEN
             INSERT INTO Address VALUES (NULL, postal_code_, town_, street_, num_);
 
-            SELECT id INTO retval FROM Address
+            SELECT id INTO address_ FROM Address
             WHERE postal_code = postal_code_
               AND town = town_
               AND street = street_
               AND num = num_;
 
             COMMIT;
-            RETURN retval;
 END;
 /
 
@@ -284,7 +280,7 @@ END;
 
 CREATE OR REPLACE PROCEDURE stock_ingredient(name_ IN VARCHAR2, amount_ IN INT) IS
     base_stock INT;
-BEGIN
+*BEGIN
     IF amount_ < 0 THEN
         raise_application_error(-20001, 'Invalid argument: amount_ should be a non-negative integer');
     END IF;
@@ -304,7 +300,7 @@ END;
 /
 
 CREATE OR REPLACE FUNCTION possible_order(dish_ IN INT) RETURN NUMBER IS
-    retval NUMBER := 0;
+    retval NUMBER := 999999999999999999999999999999999999;
 BEGIN
     FOR row IN (
         SELECT I.stock, NI.amount
@@ -315,7 +311,16 @@ BEGIN
     ) LOOP
         retval := LEAST(retval, FLOOR(row.stock / row.amount));
     END LOOP;
-    RETURN retval;
+
+    IF retval = 999999999999999999999999999999999999 THEN RETURN 0;
+    ELSE RETURN retval;
+    END IF;
+END;
+/
+
+CREATE OR REPLACE PROCEDURE get_possible_order(dish_ IN INT, how_many_ OUT INT) IS
+BEGIN
+    how_many_ := possible_order(dish_);
 END;
 /
 
@@ -340,7 +345,7 @@ BEGIN
 END;
 /
 
-CREATE OR REPLACE FUNCTION place_order(customer_ IN INT) RETURN NUMBER IS
+CREATE OR REPLACE PROCEDURE place_order(customer_ IN INT, success_ OUT INT) IS
     entries INT;
     now TIMESTAMP := SYSTIMESTAMP;
     minutes_to_arrive INT := const.base_arrival;
@@ -371,7 +376,8 @@ BEGIN
 
             IF possible_order(row.dish) < row.amount THEN
                 ROLLBACK;
-                RETURN -1; -- insufficient amount
+                success_ := -1; -- insufficient amount
+                RETURN;
             END IF;
 
             minutes_to_arrive := minutes_to_arrive + row.prep_time * row.amount;
@@ -381,10 +387,12 @@ BEGIN
 
         UPDATE "Order" SET estimated_arrival = now + NUMTODSINTERVAL(minutes_to_arrive, 'MINUTE') WHERE id = order_id;
         UPDATE Entry SET flgInCart = 0 WHERE customer = customer_;
+
+        success_ := 1; -- success
         COMMIT;
-        RETURN 1; -- success
+    ELSE
+        success_ := 0; -- nothing to order
     END IF;
-    RETURN 0; -- nothing to order
 END;
 /
 
@@ -403,31 +411,26 @@ BEGIN
 END;
 /
 
-CREATE OR REPLACE FUNCTION order_status(order_id IN INT) RETURN NUMBER IS
+CREATE OR REPLACE PROCEDURE get_order_price(order_id IN INT, price_ OUT INT) IS
+BEGIN
+    price_ := order_price(order_id);
+END;
+/
+
+CREATE OR REPLACE PROCEDURE order_status(order_id IN INT, order_status OUT INT) IS
     row "Order"%ROWTYPE;
 BEGIN
     SELECT * INTO row FROM "Order" WHERE id = order_id;
 
     IF row.flgActive = 1 AND row.arrived_at IS NULL THEN
-        RETURN 0; -- pending
+        order_status := 0; -- pending
     ELSIF row.flgActive = 0 AND row.arrived_at IS NOT NULL THEN
-        RETURN 1; -- arrived
+        order_status := 1; -- arrived
     ELSIF row.flgActive = 0 AND row.arrived_at IS NULL THEN
-        RETURN 2; -- canceled by employee
+        order_status := 2; -- canceled by employee
     ELSE
         raise_application_error(-20002, 'Invalid behaviour: order is active and has been delivered');
-        RETURN -1;
+        order_status := -1;
     END IF;
-END;
-/
-
-CREATE OR REPLACE FUNCTION get_user(login_ IN VARCHAR2) RETURN INT IS
-    retval INT;
-BEGIN
-    SELECT id INTO retval FROM "User" WHERE login = login_ AND flgDeleted = 0;
-    RETURN retval;
-
-    EXCEPTION
-        WHEN NO_DATA_FOUND THEN RETURN -1;
 END;
 /

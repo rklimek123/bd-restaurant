@@ -20,6 +20,7 @@ $invalid_input = false;
 
 // Verify, if the user has tried to sign in using this page
 if (!$auth) {
+    echo "not auth, check if auth<br>";
     $log = $_POST['login'];
     $pass = $_POST['password'];
 
@@ -34,7 +35,7 @@ if (!$auth) {
 
             if (password_verify($pass, $got_pass_hash)) {
                 $_SESSION['ID'] = $user_row['ID'];
-                $id = _SESSION['ID'];
+                $id = $user_row['ID'];
                 $auth = true;
             }
         }
