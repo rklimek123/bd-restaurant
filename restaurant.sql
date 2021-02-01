@@ -280,7 +280,7 @@ END;
 
 CREATE OR REPLACE PROCEDURE stock_ingredient(name_ IN VARCHAR2, amount_ IN INT) IS
     base_stock INT;
-*BEGIN
+BEGIN
     IF amount_ < 0 THEN
         raise_application_error(-20001, 'Invalid argument: amount_ should be a non-negative integer');
     END IF;

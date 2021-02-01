@@ -20,7 +20,6 @@ $invalid_input = false;
 
 // Verify, if the user has tried to sign in using this page
 if (!$auth) {
-    echo "not auth, check if auth<br>";
     $log = $_POST['login'];
     $pass = $_POST['password'];
 
@@ -51,52 +50,53 @@ if (!$auth) {
     <h1>Logowanie</h1>
 </div>
 <div>
-    <?php
-    if ($auth) {
-        $stmt = oci_parse($conn, "SELECT * FROM \"User\" WHERE id = $id");
-        oci_execute($stmt);
-        $user_row = oci_fetch_array($stmt);
-        oci_free_statement($stmt);
+<?php
+if ($auth) {
+    $stmt = oci_parse($conn, "SELECT * FROM \"User\" WHERE id = $id");
+    oci_execute($stmt);
+    $user_row = oci_fetch_array($stmt);
+    oci_free_statement($stmt);
 
-        if ($user_row) {
-            echo "
-                <p>
-                    Zalogowano jako ".$user_row['NAME']." ".$user_row['SURNAME'].".<br>
-                    <a href='home.php'>Wróć na stronę tytułową</a>
-                </p>
-            ";
-        }
-        else {
-            echo "Error: authorised as a nonexistent user <br>";
-        }
+    if ($user_row) {
+        echo "
+            <p>
+                Zalogowano jako ".$user_row['NAME']." ".$user_row['SURNAME'].".<br>
+                <a href='home.php'>Wróć na stronę tytułową</a>
+            </p>
+        ";
     }
     else {
-        echo "
-            <div style='margin: auto; text-align: center; display: block;'>
-        ";
+        echo "Error: authorised as a nonexistent user <br>";
+    }
+}
+else {
+    echo "
+        <div style='margin: auto; text-align: center; display: block;'>
+    ";
 
-        if ($invalid_input) {
-            echo "
-                <div style=\"color: red; font-weight: bold; border: 5px double darkred;\">
-                    <p>Podano niepoprawny login lub hasło</p>
-                </div>
-            ";
-        }
-
+    if ($invalid_input) {
         echo "
-                <form action=\"sign_in.php\" method=\"post\" style='display: inline-block; margin: auto; padding: 30px;'>
-                    <label for=\"login\">Login</label>
-                    <input type=\"text\" name=\"login\"> <br>
-                    
-                    <label for=\"password\">Hasło</label>
-                    <input type=\"password\" name=\"password\"> <br> <br>
-                    
-                    <input type=\"submit\" name=\"submit\" value=\"Zaloguj się\">
-                </form>
+            <div style=\"color: red; font-weight: bold; border: 5px double darkred;\">
+                <p>Podano niepoprawny login lub hasło</p>
             </div>
         ";
     }
-    ?>
+
+    echo "
+            <form accept-charset=\"utf-8\" action=\"sign_in.php\" method=\"post\"
+                style='display: inline-block; margin: auto; padding: 30px;'>
+                <label for=\"login\">Login</label>
+                <input type=\"text\" name=\"login\"> <br>
+                
+                <label for=\"password\">Hasło</label>
+                <input type=\"password\" name=\"password\"> <br> <br>
+                
+                <input type=\"submit\" name=\"submit\" value=\"Zaloguj się\">
+            </form>
+        </div>
+    ";
+}
+?>
 </div>
 </body>
 </html>
