@@ -169,7 +169,6 @@ if ($auth) {
                 }
                 else {
                     oci_commit($conn);
-                    // maybe sleep?
                 }
             }
         }

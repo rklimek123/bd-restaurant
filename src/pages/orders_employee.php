@@ -82,7 +82,7 @@ if (!$conn)
 
 <!-- Hello text -->
 <div style="text-align: center;">
-    <h1> Twoje zamówienia </h1>
+    <h1> Oczekujące zamówienia </h1>
 </div>
 
 <!-- Action ribbon -->
@@ -119,21 +119,30 @@ if (!$conn)
 </div>
 
 <?php
-$new_order = $_SESSION['NEW'];
 
-if ($new_order == 1) {
-    $_SESSION['NEW'] = 0;
-    echo "
-        <div style=\"color: forestgreen; font-weight: bold; border: 5px double limegreen;\">
-            <p>Zamówienie złożone pomyślnie!<br>Śledź jego status tutaj!</p>
-        </div>
-    ";
-}
-
-if (!$is_customer) {
+if (!$is_employee) {
     echo "Jak się tu dostałeś?<br> Powrót do <a href='home.php'>strony tytułowej</a>.";
 }
 else {
+    $order_delivered = $_SESSION['ORDER_DELIVERED'];
+    $order_canceled = $_SESSION['ORDER_CANCELED'];
+
+    if ($order_delivered != 0) {
+        $_SESSION['ORDER_DELIVERED'] = 0;
+        echo "
+            <div style=\"color: forestgreen; font-weight: bold; border: 5px double limegreen;\">
+                <p>Zamówienie $order_delivered dostarczone pomyślnie!</p>
+            </div>
+        ";
+    }
+    if ($order_canceled != 0) {
+        $_SESSION['ORDER_CANCELED'] = 0;
+        echo "
+            <div style=\"color: forestgreen; font-weight: bold; border: 5px double limegreen;\">
+                <p>Zamówienie $order_canceled anulowane pomyślnie!</p>
+            </div>
+        ";
+    }
 
     $query = "SELECT DISTINCT
                O.id,
@@ -143,13 +152,16 @@ else {
                A.postal_code,
                A.town,
                A.street,
-               A.num
+               A.num,
+               U.name,
+               U.surname
         FROM \"Order\" O
             JOIN OrderEntries OE ON O.id = OE.\"order\"
             JOIN Entry E ON OE.entry = E.id
             JOIN Address A ON O.address = A.id
-        WHERE E.customer = $id
-        ORDER BY O.ordered_date DESC";
+            JOIN \"User\" U ON E.customer = U.id
+        WHERE O.flgActive = 1 AND O.arrived_at IS NULL
+        ORDER BY O.ordered_date";
 
     $order_stmt = oci_parse($conn, $query);
     $ret = oci_execute($order_stmt);
@@ -161,8 +173,7 @@ else {
 
     if ($counter == 0) {
         echo "<div style='text-align: center;'>
-            <p><i>Nie zamawiałeś jeszcze niczego w naszej burgerowni...<br>Może się na coś skusisz? </i></p>
-            <p><a href='menu.php'>Zobacz nasze menu</a></p>
+            <p><i>Na ten moment brak oczekujących zamówień.</i></p>
         </div>";
     }
     else {
@@ -175,27 +186,9 @@ else {
 
         while (($order_row = oci_fetch_array($order_stmt))) {
 
-            $stmt = oci_parse($conn, "BEGIN order_status(:order, :status); END;");
-            oci_bind_by_name($stmt, ':order', $order_row['ID']);
-            oci_bind_by_name($stmt, ':status', $status, 2);
-            $ret = oci_execute($stmt);
-            oci_free_statement($stmt);
-
-            if (!$ret)
-                echo "Error checking status of fetched order".oci_error()['message'];
-
-            $border_color = "";
-
-            if ($status == 0) // pending
-                $border_color = "limegreen";
-            else if ($status == 1) // arrived
-                $border_color = "darkgray";
-            else // cancelled by employee
-                $border_color = "red";
-
             echo "
                 <div style='border-radius: 5px;
-                            border: 3px solid $border_color;
+                            border: 3px solid limegreen;
                             text-align: left;
                             margin: 20px auto;
                             padding: 10px;
@@ -204,23 +197,12 @@ else {
                 <p><b>Data złożenia:</b> ".$order_row['ORDERED_DATE']."</p>
             ";
 
-            if ($status == 0) { // pending
-                echo "
-                    <p><b>Przewidywana dostawa:</b> ".$order_row['ESTIMATED_ARRIVAL']."</p>
-                    <p><b>Status:</b> W trakcie</p>
-                ";
-            }
-            else if ($status == 1) { // arrived
-                echo "
-                    <p><b>Dostarczono:</b> ".$order_row['ARRIVED_AT']."</p>
-                    <p><b>Status:</b> Dostarczono</p>
-                ";
-            }
-            else { // cancelled by employee
-                echo "<p><b>Status:</b> Anulowane</p>";
-            }
             echo "
+                <p><b>Przewidywana dostawa:</b> ".$order_row['ESTIMATED_ARRIVAL']."</p>
+                <p><b>Status:</b> W trakcie</p>
                 <br>
+                <p><b>Zamawiający:</b><br>".$order_row['NAME']." ".$order_row['SURNAME']."
+                </p><br>
                 <p><b>Adres:</b><br>".$order_row['STREET']." ".$order_row['NUM']."<br>".
                 $order_row['POSTAL_CODE']." ".$order_row['TOWN']."</p><br>
             ";
@@ -247,7 +229,7 @@ else {
                 $multiprice = $entry_row['PRICE'] * $entry_row['AMOUNT'];
 
                 echo "<p style='text-align: right;'>"
-                        .$entry_row['NAME'].", sztuk ".$entry_row['AMOUNT'].
+                    .$entry_row['NAME'].", sztuk ".$entry_row['AMOUNT'].
                     " = $multiprice zł</p>";
             }
 
@@ -267,6 +249,18 @@ else {
                 <p style='text-align: right;'>dowóz = 10 zł</p>
                 <hr>
                 <p style='text-align: right;'><b>Cena sumarycznie: $price zł</b>
+                
+                <div style='display: block; text-align: right;
+                            margin-right: 40px; margin-top: 20px; margin-left: 75%;'>
+                    <form accept-charset=\"utf-8\" action=\"cancel_order.php\" method=\"post\">
+                        <input type=\"hidden\" name=\"order\" value='".$order_row['ID']."'>
+                        <input type=\"submit\" name=\"submit\" value='Anuluj zamówienie'>
+                    </form>
+                    <form accept-charset=\"utf-8\" action=\"deliver_order.php\" method=\"post\">
+                        <input type=\"hidden\" name=\"order\" value='".$order_row['ID']."'>
+                        <input type=\"submit\" name=\"submit\" value='Dostarcz'>
+                    </form>
+                </div>
             </div>
             ";
         }

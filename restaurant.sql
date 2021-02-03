@@ -408,6 +408,42 @@ BEGIN
 END;
 /
 
+CREATE OR REPLACE PROCEDURE cancel_order(order_ IN INT) IS
+    flgOnStart NUMBER := 0;
+
+BEGIN
+    SELECT flgActive INTO flgOnStart FROM "Order" WHERE id = order_;
+
+    IF flgOnStart = 1 THEN
+        UPDATE "Order" SET flgActive = 0 WHERE id = order_;
+        COMMIT;
+
+        FOR entry_row IN (
+            SELECT E.dish,
+                   E.amount
+            FROM OrderEntries OE
+                JOIN Entry E ON OE.entry = E.id
+            WHERE OE."order" = order_
+            ) LOOP
+
+                FOR ing_row IN (
+                    SELECT NI.ingredient,
+                           NI.amount
+                    FROM Dish D JOIN NeedIngredient NI ON D.id = NI.dish
+                    WHERE D.id = entry_row.dish
+                    ) LOOP
+                        UPDATE Ingredient SET stock = stock + ing_row.amount * entry_row.amount
+                        WHERE name = ing_row.ingredient;
+                END LOOP;
+        END LOOP;
+        COMMIT;
+    END IF;
+
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN ROLLBACK;
+END;
+/
+
 CREATE OR REPLACE FUNCTION order_price(order_id IN INT) RETURN NUMBER IS
     total_price INT := const.delivery_price;
 BEGIN
