@@ -35,7 +35,7 @@ $current_time = time();
 $current_hour = intval(date('H', $current_time), 10);
 
 if ($is_customer) {
-    if (/*$current_hour >= 22 || $current_hour < 10*/false) {
+    if ($current_hour >= 22 || $current_hour < 10) {
         header("Location: cart.php", true, 301);
         exit();
     }

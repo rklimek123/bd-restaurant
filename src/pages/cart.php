@@ -257,7 +257,7 @@ else {
 
         $current_time = time();
         $current_hour = intval(date('H', $current_time), 10);
-        /* disabled for testing
+
         if ($current_hour >= 22 || $current_hour < 10) {
             echo "
                 <div style='display: block; float: right; margin-right: 40px; margin-top: 20px;'>
@@ -267,7 +267,7 @@ else {
                 </div>
             ";
         }
-        else */if ($incorrect_amount) {
+        else if ($incorrect_amount) {
             echo "
                 <div style='display: block; float: right; margin-right: 40px; margin-top: 20px;'>
                     <i>Niestety, nie mogę sfinalizować Twojego zamówienia. <br>
