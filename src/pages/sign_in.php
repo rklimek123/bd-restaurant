@@ -1,6 +1,6 @@
 <html>
 <head>
-    <link rel="icon" href="../resources/hermes-rivera-gv_XRp4dUqM-unsplash.jpg"/>
+    <link rel="icon" href="../resources/bypass.jpg"/>
     <title>Logowanie - Burger Familia</title>
     <meta charset="UTF-8">
 </head>
@@ -52,22 +52,8 @@ if (!$auth) {
 <div>
 <?php
 if ($auth) {
-    $stmt = oci_parse($conn, "SELECT * FROM \"User\" WHERE id = $id");
-    oci_execute($stmt);
-    $user_row = oci_fetch_array($stmt);
-    oci_free_statement($stmt);
-
-    if ($user_row) {
-        echo "
-            <p>
-                Zalogowano jako ".$user_row['NAME']." ".$user_row['SURNAME'].".<br>
-                <a href='home.php'>Wróć na stronę tytułową</a>
-            </p>
-        ";
-    }
-    else {
-        echo "Error: authorised as a nonexistent user <br>";
-    }
+    header("Location: home.php");
+    exit();
 }
 else {
     echo "
@@ -84,7 +70,7 @@ else {
 
     echo "
             <form accept-charset=\"utf-8\" action=\"sign_in.php\" method=\"post\"
-                style='display: inline-block; margin: auto; padding: 30px;'>
+                style='display: inline-block; margin: auto; padding: 30px; text-align: right;'>
                 <label for=\"login\">Login</label>
                 <input type=\"text\" name=\"login\"> <br>
                 
@@ -97,6 +83,7 @@ else {
     ";
 }
 ?>
+<p><a href="home.php">Powrót na stronę tytułową</a></p>
 </div>
 </body>
 </html>

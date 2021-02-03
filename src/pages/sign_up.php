@@ -1,6 +1,6 @@
 <html>
 <head>
-    <link rel="icon" href="../resources/hermes-rivera-gv_XRp4dUqM-unsplash.jpg"/>
+    <link rel="icon" href="../resources/bypass.jpg"/>
     <title>Rejestracja - Burger Familia</title>
     <meta charset="UTF-8">
 </head>
@@ -154,7 +154,7 @@ else if (!$created_user) {
                 style='display: inline-block; margin: auto; padding: 30px; text-align: right;'>
                 
                 <label for=\"login\">Login</label>
-                <input type=\"text\" name=\"login\"> <br>
+                <input type=\"text\" name=\"login\" value='{$_POST['login']}'> <br>
                 
                 <label for=\"password\">Hasło</label>
                 <input type=\"password\" name=\"password\"> <br>
@@ -163,29 +163,29 @@ else if (!$created_user) {
                 <input type=\"password\" name=\"password_repeat\"> <br>
                 
                 <label for=\"email\">Email</label>
-                <input type=\"text\" name=\"email\"> <br>
+                <input type=\"text\" name=\"email\" value='{$_POST['email']}'> <br>
                 
                 <br>
                 
                 <label for=\"name\">Imię</label>
-                <input type=\"text\" name=\"name\"> <br>
+                <input type=\"text\" name=\"name\" value='{$_POST['name']}'> <br>
                 
                 <label for=\"surname\">Nazwisko</label>
-                <input type=\"text\" name=\"surname\"> <br>
+                <input type=\"text\" name=\"surname\" value='{$_POST['surname']}'> <br>
                 
                 <br>
                 
                 <label for=\"town\">Miasto</label>
-                <input type=\"text\" name=\"town\"> <br>
+                <input type=\"text\" name=\"town\" value='{$_POST['town']}'> <br>
                 
                 <label for=\"street\">Ulica</label>
-                <input type=\"text\" name=\"street\"> <br>
+                <input type=\"text\" name=\"street\" value='{$_POST['street']}'> <br>
                 
                 <label for=\"num\">Numer domu (format: nr. budynku/nr. mieszkania dla mieszkań)</label>
-                <input type=\"text\" name=\"num\"> <br>
+                <input type=\"text\" name=\"num\" value='{$_POST['num']}'> <br>
                 
                 <label for=\"postal\">Kod pocztowy</label>
-                <input type=\"text\" name=\"postal\"> <br>
+                <input type=\"text\" name=\"postal\" value='{$_POST['postal']}'> <br>
                 
                 <br>
                 
@@ -198,12 +198,12 @@ else {
     echo "
         <p>
             Rejestracja przebiegła pomyślnie.<br>
-            <a href='home.php'>Wróć na stronę tytułową</a>
-            lub <a href='sign_in.php'>zaloguj się</a>.
+            Możesz się <a href='sign_in.php'>zalogować</a>.
         </p>
     ";
 }
 ?>
+<p><a href="home.php">Powrót na stronę tytułową</a></p>
 </div>
 </body>
 </html>

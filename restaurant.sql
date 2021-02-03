@@ -157,11 +157,13 @@ CREATE OR REPLACE TRIGGER entry_inCart_unique
 DECLARE
     found_entries INT;
 BEGIN
-    SELECT COUNT(id) INTO found_entries FROM Entry
-    WHERE customer = :NEW.customer AND dish = :NEW.dish AND flgInCart = 1;
+    IF :NEW.flgInCart = 1 THEN
+        SELECT COUNT(id) INTO found_entries FROM Entry
+        WHERE customer = :NEW.customer AND dish = :NEW.dish AND flgInCart = 1;
 
-    IF found_entries > 0 THEN
-        raise_application_error(-20000, 'Invalid insert/update: (customer, dish) should be unique for entries in cart');
+        IF found_entries > 0 THEN
+            raise_application_error(-20000, 'Invalid insert/update: (customer, dish) should be unique for entries in cart');
+        END IF;
     END IF;
 END;
 /
@@ -364,7 +366,7 @@ BEGIN
         );
         order_id := idorder_seq.currval;
 
-        FOR row IN (
+        FOR dish_row IN (
             SELECT E.id entry_id,
                    E.dish,
                    E.amount,
@@ -374,15 +376,25 @@ BEGIN
             WHERE E.customer = customer_ AND E.flgInCart = 1
         ) LOOP
 
-            IF possible_order(row.dish) < row.amount THEN
+            IF possible_order(dish_row.dish) < dish_row.amount THEN
                 ROLLBACK;
                 success_ := -1; -- insufficient amount
                 RETURN;
+            ELSE
+                FOR ing_row IN (
+                    SELECT NI.ingredient,
+                           NI.amount
+                    FROM Dish D JOIN NeedIngredient NI ON D.id = NI.dish
+                    WHERE D.id = dish_row.dish
+                ) LOOP
+                    UPDATE Ingredient SET stock = stock - ing_row.amount * dish_row.amount
+                    WHERE name = ing_row.ingredient;
+                END LOOP;
             END IF;
 
-            minutes_to_arrive := minutes_to_arrive + row.prep_time * row.amount;
+            minutes_to_arrive := minutes_to_arrive + dish_row.prep_time * dish_row.amount;
 
-            INSERT INTO OrderEntries VALUES (order_id, row.entry_id);
+            INSERT INTO OrderEntries VALUES (order_id, dish_row.entry_id);
         END LOOP;
 
         UPDATE "Order" SET estimated_arrival = now + NUMTODSINTERVAL(minutes_to_arrive, 'MINUTE') WHERE id = order_id;

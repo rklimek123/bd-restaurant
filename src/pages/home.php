@@ -1,6 +1,6 @@
 <html>
 <head>
-    <link rel="icon" href="../resources/hermes-rivera-gv_XRp4dUqM-unsplash.jpg"/>
+    <link rel="icon" href="../resources/bypass.jpg"/>
     <title>Burger Familia</title>
     <meta charset="UTF-8">
 </head>
@@ -16,7 +16,8 @@ if (!$conn)
     echo "Error connecting: ".oci_error()['message'];
 
 ?>
-<div style="float: right;">
+<!-- Top-right corner panel -->
+<div style="text-align: right;">
     <?php
     if ($auth) {
         $stmt = oci_parse($conn, "SELECT * FROM \"User\" WHERE id = $id");
@@ -31,7 +32,7 @@ if (!$conn)
         $stmt = oci_parse($conn,"BEGIN role(:id_, :role_); END;");
 
         $ret1 = oci_bind_by_name($stmt, ':id_', $id);
-        $ret2 = oci_bind_by_name($stmt, ':role_', $role, 2);
+        $ret2 = oci_bind_by_name($stmt, ':role_', $role);
         $ret = oci_execute($stmt);
         oci_free_statement($stmt);
 
@@ -78,9 +79,12 @@ if (!$conn)
     ?>
 </div>
 
+<!-- Hello text -->
 <div style="text-align: center;">
     <h1> Witaj na stronie burgerowni <i><b style="color: darkred;">Burger Familia</b></i> </h1>
 </div>
+
+<!-- Action ribbon -->
 <div>
     <?php
     if (!$auth) {
@@ -89,6 +93,26 @@ if (!$conn)
             Zaloguj się by kontynować.
         </p>
         ';
+    }
+    else {
+
+        echo "
+            <a href='home.php'>Strona tytułowa</a> |
+        ";
+
+        if ($is_customer) {
+            echo "
+                <a href='menu.php'>Menu</a> | 
+                <a href='cart.php'>Koszyk</a> | 
+                <a href='orders_customer.php'>Zamówienia</a>
+            ";
+        }
+        else if ($is_employee) {
+            echo "
+                <a href='storage.php'>Magazyn</a> | 
+                <a href='orders_employee.php'>Zamówienia</a> | 
+            ";
+        }
     }
     ?>
 </div>
